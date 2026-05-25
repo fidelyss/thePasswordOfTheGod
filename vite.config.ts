@@ -8,7 +8,8 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
-    jsxLocPlugin(),
+    jsxLocPlugin(), 
+    // NENHUM plugin manus aqui
   ],
 
   resolve: {
