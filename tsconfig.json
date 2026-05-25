@@ -12,14 +12,12 @@
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
-
     "baseUrl": ".",
     "paths": {
       "@/*": ["client/src/*"],
       "@shared/*": ["shared/*"],
       "@assets/*": ["attached_assets/*"]
     },
-
     "types": ["node", "vite/client"]
   }
 }
