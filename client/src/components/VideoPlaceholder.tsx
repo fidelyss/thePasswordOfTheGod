@@ -5,6 +5,9 @@ import Hls from "hls.js";
 const HLS_SRC =
   "https://vz-3bd7e83a-9d7.b-cdn.net/515e9e95-ccb4-40e3-8262-da8a586c4c36/playlist.m3u8";
 
+const POSTER_SRC =
+  "https://vz-3bd7e83a-9d7.b-cdn.net/515e9e95-ccb4-40e3-8262-da8a586c4c36/thumbnail_eb79d340.jpg";
+
 export default function VideoPlaceholder() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -115,6 +118,7 @@ export default function VideoPlaceholder() {
         {/* VIDEO */}
         <video
           ref={videoRef}
+          poster={POSTER_SRC}
           className="absolute inset-0 w-full h-full object-cover rounded-3xl"
           loop
           muted
@@ -124,7 +128,12 @@ export default function VideoPlaceholder() {
 
         {/* Skeleton leve para LCP */}
         {!isReady && (
-          <div className="absolute inset-0 bg-black animate-pulse z-10" />
+          <div
+            className="absolute inset-0 z-10 bg-center bg-cover animate-pulse"
+            style={{
+              backgroundImage: `url(${POSTER_SRC})`,
+            }}
+          />
         )}
 
         {/* Glow */}
