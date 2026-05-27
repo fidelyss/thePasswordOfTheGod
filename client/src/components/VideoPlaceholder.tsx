@@ -1,151 +1,172 @@
-import { Play } from 'lucide-react';
-import { useState, useRef, useEffect } from 'react';
+import { Play } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import Hls from "hls.js";
 
-/**
- * VideoPlaceholder Component
- * 
- * Design Philosophy: Celestial Luxury
- * - Placeholder elegante e moderno para vídeo vertical
- * - Glow dourado sutil com animação pulsante
- * - Botão play premium com hover effect
- * - Responsivo para todos os dispositivos
- */
+const HLS_SRC =
+  "https://vz-3bd7e83a-9d7.b-cdn.net/515e9e95-ccb4-40e3-8262-da8a586c4c36/playlist.m3u8";
 
-export default function VideoPlaceholder({ videoSrc = "https://subtle-kitten-9d0bfe.netlify.app/video/v.mp4" }: { videoSrc?: string }) {
+export default function VideoPlaceholder() {
   const videoRef = useRef<HTMLVideoElement>(null);
+
   const [isHovered, setIsHovered] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
-  // Autoplay muted on page load
   useEffect(() => {
     const video = videoRef.current;
+
     if (!video) return;
 
     video.muted = true;
-    video.volume = 1;
+    video.playsInline = true;
 
-    const playVideo = async () => {
-      try {
-        await video.play();
-      } catch (err) {
-        console.log('Autoplay prevented:', err);
-      }
-    };
+    // Safari native HLS
+    if (video.canPlayType("application/vnd.apple.mpegurl")) {
+      video.src = HLS_SRC;
 
-    playVideo();
+      video.addEventListener("loadeddata", () => {
+        setIsReady(true);
+        video.play().catch(() => {});
+      });
+
+      return;
+    }
+
+    // Chrome / Edge / Firefox
+    if (Hls.isSupported()) {
+      const hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true,
+      });
+
+      hls.loadSource(HLS_SRC);
+
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setIsReady(true);
+
+        video.play().catch(() => {});
+      });
+
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        console.log("HLS ERROR", data);
+      });
+
+      return () => {
+        hls.destroy();
+      };
+    }
+  }, []);
+
+  useEffect(() => {
+    const video = videoRef.current;
+
+    if (!video) return;
 
     const handlePause = () => setIsPaused(true);
     const handlePlay = () => setIsPaused(false);
 
-    video.addEventListener('pause', handlePause);
-    video.addEventListener('play', handlePlay);
+    video.addEventListener("pause", handlePause);
+    video.addEventListener("play", handlePlay);
 
     return () => {
-      video.removeEventListener('pause', handlePause);
-      video.removeEventListener('play', handlePlay);
+      video.removeEventListener("pause", handlePause);
+      video.removeEventListener("play", handlePlay);
     };
-  }, [videoSrc]);
+  }, []);
 
   const handleContainerClick = () => {
     const video = videoRef.current;
+
     if (!video) return;
 
     if (video.paused) {
       video.play();
-    } else {
-      if (video.muted) {
-        // Primeira interação: libera áudio em volume máximo
-        video.muted = false;
-        video.volume = 1;
-      } else {
-        // Cliques seguintes: pausar (mostra overlay da imagem)
-        video.pause();
-      }
+      return;
     }
+
+    if (video.muted) {
+      video.muted = false;
+      video.volume = 1;
+      return;
+    }
+
+    video.pause();
   };
 
   const handleResume = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const video = videoRef.current;
-    if (video) {
-      video.play();
-    }
+
+    videoRef.current?.play();
   };
 
   return (
     <div className="w-full flex justify-center py-12 md:py-16 px-4">
       <div
-        className="relative w-full max-w-sm rounded-3xl overflow-hidden group cursor-pointer transition-all duration-300"
+        className="relative w-full max-w-sm rounded-3xl overflow-hidden cursor-pointer"
         style={{
-          aspectRatio: '9 / 16',
+          aspectRatio: "9 / 16",
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         onClick={handleContainerClick}
       >
-        {/* Vídeo real no centro */}
+        {/* VIDEO */}
         <video
           ref={videoRef}
-          src={videoSrc}
           className="absolute inset-0 w-full h-full object-cover rounded-3xl"
-          playsInline
           loop
+          muted
+          playsInline
+          preload="metadata"
         />
 
-        {/* Animated Glow Background */}
-        <div
-          className="absolute inset-0 rounded-3xl transition-all duration-500 pointer-events-none"
-          style={{
-            boxShadow: isHovered
-              ? '0 0 40px oklch(0.72 0.18 45 / 0.5), 0 0 80px oklch(0.72 0.18 45 / 0.25), inset 0 0 30px oklch(0.72 0.18 45 / 0.1)'
-              : '0 0 30px oklch(0.72 0.18 45 / 0.3), 0 0 60px oklch(0.72 0.18 45 / 0.15)',
-          }}
-        ></div>
-
-        {/* Overlay da imagem (aparece ao pausar) */}
-        {isPaused && (
-          <div className="absolute inset-0 bg-black flex flex-col items-center justify-center p-6 md:p-8 z-20 text-center">
-            {/* Textos exatos da imagem */}
-            <div className="text-center space-y-3 mb-8 z-10">
-              <p className="text-white text-sm md:text-base font-semibold leading-relaxed tracking-wide">
-                Esse vídeo sairá do ar em breve!
-              </p>
-              <p className="text-white/90 text-xs md:text-sm leading-relaxed font-light">
-                Essa é sua última chance de aprender ativar o Código de Deus e viver a vida dos seus sonhos
-              </p>
-            </div>
-
-            {/* Stop hand icon (exatamente como na imagem) */}
-            <div className="mb-8 z-10 animate-bounce" style={{ animationDuration: '2s' }}>
-              <div className="w-16 h-16 md:w-20 md:h-20 bg-red-600 rounded-3xl flex items-center justify-center shadow-2xl border-4 border-red-400">
-                <span className="text-6xl md:text-7xl drop-shadow-lg">🖐️</span>
-              </div>
-            </div>
-
-            {/* Botão "Continuar assistindo" */}
-            <button
-              onClick={handleResume}
-              className="px-6 py-2 md:px-8 md:py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-sm md:text-base font-bold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95 uppercase tracking-wide"
-            >
-              Continuar assistindo
-            </button>
-
-            {/* Cursor de mão apontando (como na imagem) */}
-            <div className="absolute bottom-8 right-8 text-white animate-pulse text-4xl">👆</div>
-          </div>
+        {/* Skeleton leve para LCP */}
+        {!isReady && (
+          <div className="absolute inset-0 bg-black animate-pulse z-10" />
         )}
 
-        {/* Border Glow - Premium */}
+        {/* Glow */}
         <div
           className="absolute inset-0 rounded-3xl pointer-events-none transition-all duration-300"
           style={{
-            border: '2px solid',
-            borderColor: isHovered
-              ? 'oklch(0.72 0.18 45 / 0.6)'
-              : 'oklch(0.72 0.18 45 / 0.2)',
-            opacity: isHovered ? 1 : 0.6,
+            boxShadow: isHovered
+              ? "0 0 40px oklch(0.72 0.18 45 / 0.4)"
+              : "0 0 25px oklch(0.72 0.18 45 / 0.2)",
           }}
-        ></div>
+        />
+
+        {/* Overlay pause */}
+        {isPaused && (
+          <div className="absolute inset-0 bg-black/90 z-20 flex flex-col items-center justify-center p-6 text-center">
+            <p className="text-white text-sm font-semibold mb-2">
+              Esse vídeo sairá do ar em breve!
+            </p>
+
+            <p className="text-white/80 text-xs mb-6">
+              Essa é sua última chance de aprender ativar o Código de Deus.
+            </p>
+
+            <div className="mb-6 text-6xl animate-bounce">🖐️</div>
+
+            <button
+              onClick={handleResume}
+              className="bg-red-600 hover:bg-red-700 text-white font-bold px-6 py-3 rounded-xl transition-all"
+            >
+              Continuar assistindo
+            </button>
+          </div>
+        )}
+
+        {/* Play Icon */}
+        {!isReady && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center">
+            <div className="bg-white/10 backdrop-blur-md rounded-full p-5 border border-white/20">
+              <Play className="text-white fill-white" size={38} />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
